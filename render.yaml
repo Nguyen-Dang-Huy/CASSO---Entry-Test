@@ -1,0 +1,6 @@
+services:
+  - type: worker
+    name: casso-entry-test-bot
+    env: docker
+    plan: free
+    autoDeploy: true

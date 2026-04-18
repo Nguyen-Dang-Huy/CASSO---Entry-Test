@@ -77,6 +77,13 @@ HUONG DAN CHAY CODE MVP (TELEGRAM BOT)
 	BANK_ACCOUNT
 	BANK_ACCOUNT_NAME
 
+6.1) Deploy tren Render
+- Vao Render -> New -> Web Service khong dung, hay chon Background Worker.
+- Connect repository GitHub nay.
+- Render se doc file render.yaml va tao worker Docker tu dong.
+- Add cac environment variables o tren trong trang setting cua Render.
+- Bot se chay lien tuc bang polling, khong can PORT.
+
 7) Ghi chu deploy
 - Day la bot polling, nen host phai cho phep process chay lien tuc.
 - Neu nen tang yeu cau web service co PORT, hay dung worker/background service thay vi web service.
