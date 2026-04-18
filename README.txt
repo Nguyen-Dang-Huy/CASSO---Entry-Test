@@ -8,7 +8,8 @@ TELEGRAM MILK TEA ORDER BOT - SYSTEM README
   - them/xoa mon trong gio
   - checkout
   - nhan thong tin giao hang
-  - xac nhan thanh toan (demo)
+	- tao link thanh toan payOS (neu cau hinh)
+	- xac nhan thanh toan tu payOS qua /paid hoac /checkpaid
 - Bot co 2 che do van hanh:
   - Polling (thuong dung local)
   - Webhook (thuong dung tren Render)
@@ -25,6 +26,7 @@ TELEGRAM MILK TEA ORDER BOT - SYSTEM README
 - Python 3.10+
 - Telegram Bot Token
 - (Tuy chon) OpenAI API key de chat AI
+- (Tuy chon) payOS key de tao link thanh toan va kiem tra trang thai
 - (Tuy chon) thong tin ngan hang de tao link VietQR
 
 4) Cai dat local
@@ -44,6 +46,11 @@ TELEGRAM MILK TEA ORDER BOT - SYSTEM README
 	 Tuy chon:
 	 - OPENAI_API_KEY
 	 - OPENAI_MODEL (mac dinh: gpt-4o-mini)
+	 - PAYOS_CLIENT_ID
+	 - PAYOS_API_KEY
+	 - PAYOS_CHECKSUM_KEY
+	 - PAYOS_RETURN_URL
+	 - PAYOS_CANCEL_URL
 	 - BANK_CODE
 	 - BANK_ACCOUNT
 	 - BANK_ACCOUNT_NAME
@@ -62,6 +69,7 @@ TELEGRAM MILK TEA ORDER BOT - SYSTEM README
 - /clear
 - /checkout
 - /order
+- /checkpaid
 - /paid
 - /cancelorder
 
@@ -77,10 +85,16 @@ TELEGRAM MILK TEA ORDER BOT - SYSTEM README
 	- delivery_info_confirmed
 	- payment_confirmed hoac payment_confirmed_by_text
 
+Luu y thanh toan:
+- Neu cau hinh payOS: /paid va /checkpaid se truy van trang thai thanh toan tu payOS.
+- Neu chua cau hinh payOS: bot dung quy trinh demo va co the fallback sang link VietQR (neu da cau hinh BANK_*).
+
 7) Cac bien moi truong
 - TELEGRAM_BOT_TOKEN: bat buoc
 - OPENAI_API_KEY: bat AI chat
 - OPENAI_MODEL: model OpenAI (default gpt-4o-mini)
+- PAYOS_CLIENT_ID/PAYOS_API_KEY/PAYOS_CHECKSUM_KEY: thong tin xac thuc payOS
+- PAYOS_RETURN_URL/PAYOS_CANCEL_URL: URL dieu huong khi thanh toan thanh cong/huy
 - BANK_CODE/BANK_ACCOUNT/BANK_ACCOUNT_NAME: tao link VietQR
 - WEBHOOK_HOST: URL public cua service (khi deploy webhook)
 - PORT: cong web service (host thuong tu cap)

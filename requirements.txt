@@ -2,3 +2,4 @@ python-telegram-bot[webhooks]==21.6
 python-dotenv==1.0.1
 openai==1.52.2
 tornado==6.4.1
+payos==1.1.0

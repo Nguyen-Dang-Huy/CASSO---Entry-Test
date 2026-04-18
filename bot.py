@@ -11,6 +11,8 @@ from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from payos import APIError, PayOS
+from payos.types import CreatePaymentLinkRequest
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
@@ -58,6 +60,9 @@ class PendingOrder:
     lines: List[CartLine]
     created_at: str
     qr_link: str | None
+    payment_provider: str = "manual"
+    payos_order_code: int | None = None
+    payos_payment_link_id: str = ""
     payment_status: str = "unpaid"
     delivery_name: str = ""
     delivery_phone: str = ""
@@ -68,6 +73,9 @@ SESSIONS: Dict[int, Session] = {}
 MENU: Dict[str, MenuItem] = {}
 OPENAI_CLIENT: OpenAI | None = None
 OPENAI_MODEL: str = "gpt-4o-mini"
+PAYOS_CLIENT: PayOS | None = None
+PAYOS_RETURN_URL: str = ""
+PAYOS_CANCEL_URL: str = ""
 DELIVERY_INFO_TEMPLATE = (
     "Ten: Ten nguoi nhan\n"
     "SDT: So dien thoai nguoi nhan\n"
@@ -234,6 +242,96 @@ def create_vietqr_link(amount: int, order_code: str) -> str | None:
     return f"https://img.vietqr.io/image/{bank_code}-{bank_account}-compact2.png?amount={amount}&addInfo={add_info}"
 
 
+def _get_obj_value(obj: object, *keys: str) -> object | None:
+    if obj is None:
+        return None
+
+    for key in keys:
+        if isinstance(obj, dict) and key in obj:
+            return obj[key]
+        if hasattr(obj, key):
+            return getattr(obj, key)
+
+    model_dump = getattr(obj, "model_dump", None)
+    if callable(model_dump):
+        try:
+            dumped = model_dump()
+            for key in keys:
+                if key in dumped:
+                    return dumped[key]
+        except Exception:
+            return None
+
+    return None
+
+
+def is_payos_enabled() -> bool:
+    return PAYOS_CLIENT is not None and bool(PAYOS_RETURN_URL and PAYOS_CANCEL_URL)
+
+
+def create_payos_link(amount: int, order_code: str) -> Dict[str, object] | None:
+    if not is_payos_enabled():
+        return None
+
+    # payOS requires order_code as integer. Use epoch milliseconds to reduce collisions.
+    payos_order_code = int(datetime.now().timestamp() * 1000)
+    description = f"DH {order_code}"[:25]
+
+    payment_data = CreatePaymentLinkRequest(
+        order_code=payos_order_code,
+        amount=amount,
+        description=description,
+        cancel_url=PAYOS_CANCEL_URL,
+        return_url=PAYOS_RETURN_URL,
+    )
+
+    try:
+        response = PAYOS_CLIENT.payment_requests.create(payment_data=payment_data)
+    except APIError as exc:
+        LOGGER.warning("Khong tao duoc link payOS: %s", exc)
+        return None
+    except Exception as exc:
+        LOGGER.exception("Loi khong xac dinh khi tao link payOS", exc_info=exc)
+        return None
+
+    data = _get_obj_value(response, "data") or response
+    checkout_url = _get_obj_value(data, "checkout_url", "checkoutUrl")
+    payment_link_id = _get_obj_value(data, "id", "paymentLinkId", "payment_link_id")
+
+    if not checkout_url:
+        LOGGER.warning("payOS tra ve response nhung khong co checkout_url")
+        return None
+
+    return {
+        "checkout_url": str(checkout_url),
+        "payos_order_code": payos_order_code,
+        "payos_payment_link_id": str(payment_link_id or ""),
+    }
+
+
+def get_payos_payment_status(order: PendingOrder) -> str | None:
+    if not PAYOS_CLIENT:
+        return None
+    if not order.payos_order_code and not order.payos_payment_link_id:
+        return None
+
+    lookup_id: int | str = order.payos_order_code or order.payos_payment_link_id
+    try:
+        response = PAYOS_CLIENT.payment_requests.get(lookup_id)
+    except APIError as exc:
+        LOGGER.warning("Khong lay duoc trang thai payOS cho %s: %s", lookup_id, exc)
+        return None
+    except Exception as exc:
+        LOGGER.exception("Loi khong xac dinh khi truy van payOS", exc_info=exc)
+        return None
+
+    data = _get_obj_value(response, "data") or response
+    status = _get_obj_value(data, "status")
+    if status is None:
+        return None
+    return str(status).upper()
+
+
 def save_order_event(
     user_id: int,
     order: PendingOrder,
@@ -250,6 +348,9 @@ def save_order_event(
         "full_name": full_name,
         "created_at": order.created_at,
         "amount": order.amount,
+        "payment_provider": order.payment_provider,
+        "payos_order_code": order.payos_order_code,
+        "payos_payment_link_id": order.payos_payment_link_id,
         "payment_status": order.payment_status,
         "delivery_name": order.delivery_name,
         "delivery_phone": order.delivery_phone,
@@ -310,6 +411,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/clear - xoa gio\n"
         "/checkout - chot don va nhap thong tin giao hang\n"
         "/order - xem don dang xu ly\n"
+        "/checkpaid - kiem tra trang thai thanh toan\n"
         "/paid - xac nhan da thanh toan (demo)\n"
         "/cancelorder - huy don dang xu ly\n"
         "/help - xem huong dan"
@@ -432,6 +534,17 @@ async def paid_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("Don nay da o trang thai DA THANH TOAN roi.")
         return
 
+    if order.payment_provider == "payos":
+        status = get_payos_payment_status(order)
+        if status != "PAID":
+            waiting_label = status or "PENDING"
+            await update.message.reply_text(
+                "He thong chua ghi nhan thanh toan tren payOS. "
+                f"Trang thai hien tai: {waiting_label}.\n"
+                "Ban co the doi them it phut roi dung /paid hoac /checkpaid de kiem tra lai."
+            )
+            return
+
     order.payment_status = "paid"
     user = update.effective_user
     full_name = " ".join(part for part in [user.first_name, user.last_name] if part)
@@ -445,6 +558,36 @@ async def paid_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "Da ghi nhan thanh toan. Quan se lam mon va giao hang som.\n\n"
         + build_pending_order_text(order)
+    )
+
+
+async def checkpaid_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    session = get_session(user_id)
+    order = session.pending_order
+
+    if not order:
+        await update.message.reply_text("Khong co don nao dang xu ly.")
+        return
+
+    if order.payment_status == "paid":
+        await update.message.reply_text("Don nay da o trang thai DA THANH TOAN.")
+        return
+
+    if order.payment_provider != "payos":
+        await update.message.reply_text(
+            "Don nay khong su dung payOS. Hay dung /paid de xac nhan thanh toan theo quy trinh demo."
+        )
+        return
+
+    status = get_payos_payment_status(order)
+    if status == "PAID":
+        await paid_cmd(update, context)
+        return
+
+    await update.message.reply_text(
+        "He thong chua ghi nhan thanh toan tren payOS. "
+        f"Trang thai hien tai: {status or 'PENDING'}."
     )
 
 
@@ -477,7 +620,20 @@ async def checkout_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     amount = cart_total(session)
     order_code = datetime.now().strftime("OD%y%m%d%H%M%S")
-    qr_link = create_vietqr_link(amount, order_code)
+    payment_provider = "manual"
+    payos_order_code: int | None = None
+    payos_payment_link_id = ""
+
+    payos_link = create_payos_link(amount, order_code)
+    if payos_link:
+        qr_link = str(payos_link["checkout_url"])
+        payment_provider = "payos"
+        payos_order_code = int(payos_link["payos_order_code"])
+        payos_payment_link_id = str(payos_link["payos_payment_link_id"])
+    else:
+        qr_link = create_vietqr_link(amount, order_code)
+        if qr_link:
+            payment_provider = "vietqr"
 
     order_lines = [CartLine(item_id=line.item_id, size=line.size, qty=line.qty) for line in session.cart]
     session.pending_order = PendingOrder(
@@ -486,6 +642,9 @@ async def checkout_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         lines=order_lines,
         created_at=datetime.now().isoformat(),
         qr_link=qr_link,
+        payment_provider=payment_provider,
+        payos_order_code=payos_order_code,
+        payos_payment_link_id=payos_payment_link_id,
     )
     session.cart.clear()
 
@@ -496,16 +655,20 @@ async def checkout_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "Trang thai thanh toan: CHUA THANH TOAN",
     ]
     if qr_link:
-        lines.append(f"QR thanh toan: {qr_link}")
+        if payment_provider == "payos":
+            lines.append(f"Link thanh toan payOS: {qr_link}")
+        else:
+            lines.append(f"QR thanh toan: {qr_link}")
     else:
         lines.append(
-            "Chua cau hinh BANK_CODE/BANK_ACCOUNT nen chua tao duoc link QR."
+            "Chua cau hinh payOS hoac BANK_CODE/BANK_ACCOUNT nen chua tao duoc link thanh toan."
         )
     lines.append(
         "\nHUONG DAN SAU BUOC NAY:\n"
         "1) Thanh toan: quet QR/chuyen khoan truoc.\n"
         "2) Gui thong tin giao hang theo mau ben duoi.\n"
-        "3) Do dang demo (khong co giao dich that), sau khi gui thong tin giao hang hay dung /paid de qua buoc xac nhan thanh toan."
+        "3) Neu dung payOS, bot se kiem tra trang thai thanh toan qua /paid hoac /checkpaid.\n"
+        "4) Neu khong dung payOS (demo), sau khi gui thong tin giao hang hay dung /paid de qua buoc xac nhan thanh toan."
     )
 
     user = update.effective_user
@@ -567,6 +730,16 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         text_lc = update.message.text.lower()
         paid_keywords = ["da chuyen khoan", "da thanh toan", "da ck", "ck roi", "chuyen khoan roi"]
         if any(keyword in text_lc for keyword in paid_keywords):
+            if order.payment_provider == "payos":
+                status = get_payos_payment_status(order)
+                if status != "PAID":
+                    await update.message.reply_text(
+                        "Minh chua thay giao dich thanh cong tren payOS. "
+                        f"Trang thai hien tai: {status or 'PENDING'}.\n"
+                        "Ban thu lai sau vai phut hoac dung /checkpaid."
+                    )
+                    return
+
             order.payment_status = "paid"
             user = update.effective_user
             full_name = " ".join(part for part in [user.first_name, user.last_name] if part)
@@ -614,6 +787,25 @@ def main() -> None:
     global OPENAI_MODEL
     OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip()
 
+    global PAYOS_CLIENT
+    global PAYOS_RETURN_URL
+    global PAYOS_CANCEL_URL
+    payos_client_id = os.getenv("PAYOS_CLIENT_ID", "").strip()
+    payos_api_key = os.getenv("PAYOS_API_KEY", "").strip()
+    payos_checksum_key = os.getenv("PAYOS_CHECKSUM_KEY", "").strip()
+
+    PAYOS_RETURN_URL = os.getenv("PAYOS_RETURN_URL", "").strip()
+    PAYOS_CANCEL_URL = os.getenv("PAYOS_CANCEL_URL", "").strip()
+
+    if payos_client_id and payos_api_key and payos_checksum_key:
+        PAYOS_CLIENT = PayOS(
+            client_id=payos_client_id,
+            api_key=payos_api_key,
+            checksum_key=payos_checksum_key,
+        )
+    else:
+        PAYOS_CLIENT = None
+
     app = Application.builder().token(token).build()
     app.add_handler(CommandHandler("start", start_cmd))
     app.add_handler(CommandHandler("help", help_cmd))
@@ -624,6 +816,7 @@ def main() -> None:
     app.add_handler(CommandHandler("clear", clear_cmd))
     app.add_handler(CommandHandler("checkout", checkout_cmd))
     app.add_handler(CommandHandler("order", order_cmd))
+    app.add_handler(CommandHandler("checkpaid", checkpaid_cmd))
     app.add_handler(CommandHandler("paid", paid_cmd))
     app.add_handler(CommandHandler("cancelorder", cancelorder_cmd))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
