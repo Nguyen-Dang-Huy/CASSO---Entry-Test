@@ -621,6 +621,9 @@ def main() -> None:
     app.add_error_handler(error_handler)
 
     webhook_host = os.getenv("WEBHOOK_HOST", "").strip()
+    if not webhook_host:
+        # Render web service exposes a public URL that can be used for Telegram webhook.
+        webhook_host = os.getenv("RENDER_EXTERNAL_URL", "").strip()
     webhook_port = int(os.getenv("PORT", "10000"))
 
     if webhook_host:

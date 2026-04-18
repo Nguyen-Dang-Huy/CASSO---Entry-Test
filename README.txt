@@ -83,14 +83,33 @@ HUONG DAN CHAY CODE MVP (TELEGRAM BOT)
 - Vao Render -> New -> Web Service.
 - Connect repository GitHub nay.
 - Render se doc file render.yaml va tao web service Docker tu dong.
-- Add cac environment variables o tren trong trang setting cua Render.
-- Neu dung webhook, dien WEBHOOK_HOST bang URL public cua service, vi du https://ten-service.onrender.com.
-- Neu khong co WEBHOOK_HOST, bot se chay polling nhu local.
+- Add cac environment variables o tren trong trang setting cua Render (Environment), KHONG dung file .env local.
+- Neu dung webhook, co the dien WEBHOOK_HOST bang URL public cua service, vi du https://ten-service.onrender.com.
+- Neu khong dien WEBHOOK_HOST, bot tu dong thu dung bien RENDER_EXTERNAL_URL do Render cap.
 
 7) Ghi chu deploy
 - Bot ho tro ca polling va webhook.
 - Khi co WEBHOOK_HOST, bot se chay tren web service.
 - Khi khong co WEBHOOK_HOST, bot se chay polling.
+
+==================================================
+XU LY SU CO THUONG GAP TREN RENDER
+==================================================
+
+1) Da doi BANK_ACCOUNT/BANK_ACCOUNT_NAME nhung QR van hien thong tin cu
+- Nguyen nhan: ban moi doi file .env local; Render khong doc file .env trong may cua ban.
+- Cach sua:
+	- Vao Render -> Service -> Environment
+	- Cap nhat BANK_CODE, BANK_ACCOUNT, BANK_ACCOUNT_NAME
+	- Bam Save Changes va Redeploy service
+
+2) Tat VS Code xong bot khong tra loi
+- Neu bot chi chay local (`python bot.py`), tat VS Code thi process dung la binh thuong.
+- De bot chay 24/7 tren Render:
+	- Bao dam service dang Deploy thanh cong va status la Live.
+	- Dat TELEGRAM_BOT_TOKEN dung.
+	- Kiem tra logs co dong "Bot dang chay o che do webhook".
+	- Neu chua co, them WEBHOOK_HOST hoac de bot tu lay RENDER_EXTERNAL_URL roi redeploy lai.
 
 Ghi chu:
 - Menu doc tu file Menu.csv.
