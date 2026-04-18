@@ -620,7 +620,23 @@ def main() -> None:
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
     app.add_error_handler(error_handler)
 
-    print("Bot dang chay...")
+    webhook_host = os.getenv("WEBHOOK_HOST", "").strip()
+    webhook_port = int(os.getenv("PORT", "10000"))
+
+    if webhook_host:
+        webhook_url = f"{webhook_host.rstrip('/')}/{token}"
+        print(f"Bot dang chay o che do webhook: {webhook_url}")
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=webhook_port,
+            url_path=token,
+            webhook_url=webhook_url,
+            drop_pending_updates=True,
+            allowed_updates=Update.ALL_TYPES,
+        )
+        return
+
+    print("Bot dang chay o che do polling...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 

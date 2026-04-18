@@ -1,5 +1,5 @@
 services:
-  - type: worker
+  - type: web
     name: casso-entry-test-bot
     env: docker
     plan: free

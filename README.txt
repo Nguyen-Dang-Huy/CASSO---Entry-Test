@@ -68,7 +68,7 @@ HUONG DAN CHAY CODE MVP (TELEGRAM BOT)
 
 6) Deploy nhanh bang Docker
 - Repo nay co san Dockerfile va Procfile de chay tren cac nen tang ho tro Docker.
-- Cach de nhat la dung Railway hoac Render (worker/background service).
+- Cach de nhat la dung Render web service hoac nen tang co ho tro Docker.
 - Can set cac bien moi truong tren host:
 	TELEGRAM_BOT_TOKEN
 	OPENAI_API_KEY (neu dung AI)
@@ -76,17 +76,21 @@ HUONG DAN CHAY CODE MVP (TELEGRAM BOT)
 	BANK_CODE
 	BANK_ACCOUNT
 	BANK_ACCOUNT_NAME
+	WEBHOOK_HOST (neu deploy webhook)
+	PORT (thuong host se cap san)
 
 6.1) Deploy tren Render
-- Vao Render -> New -> Web Service khong dung, hay chon Background Worker.
+- Vao Render -> New -> Web Service.
 - Connect repository GitHub nay.
-- Render se doc file render.yaml va tao worker Docker tu dong.
+- Render se doc file render.yaml va tao web service Docker tu dong.
 - Add cac environment variables o tren trong trang setting cua Render.
-- Bot se chay lien tuc bang polling, khong can PORT.
+- Neu dung webhook, dien WEBHOOK_HOST bang URL public cua service, vi du https://ten-service.onrender.com.
+- Neu khong co WEBHOOK_HOST, bot se chay polling nhu local.
 
 7) Ghi chu deploy
-- Day la bot polling, nen host phai cho phep process chay lien tuc.
-- Neu nen tang yeu cau web service co PORT, hay dung worker/background service thay vi web service.
+- Bot ho tro ca polling va webhook.
+- Khi co WEBHOOK_HOST, bot se chay tren web service.
+- Khi khong co WEBHOOK_HOST, bot se chay polling.
 
 Ghi chu:
 - Menu doc tu file Menu.csv.
