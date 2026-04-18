@@ -116,7 +116,8 @@ Ghi chu:
 - Don hang duoc luu vao orders.jsonl theo tung su kien: tao don, xac nhan thong tin giao hang, xac nhan thanh toan.
 - Sau /checkout, bot yeu cau nguoi dung gui thong tin giao hang theo mau:
 	Ten: Nguyen Van A
-	SDT: 09xxxxxxxx
+	SDT: So dien thoai nguoi nhan
 	Dia chi: So nha, duong, quan
+	Vi du: 0812345678
 - Khi chua cau hinh thong tin ngan hang, /checkout van chot don nhung khong tao link QR.
 - /paid la buoc xac nhan thanh toan phuc vu demo quy trinh (chua doi soat giao dich tu dong).

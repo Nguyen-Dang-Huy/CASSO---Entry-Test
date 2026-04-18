@@ -415,7 +415,7 @@ async def paid_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not order.delivery_phone or not order.delivery_address:
         await update.message.reply_text(
             "Don nay chua du thong tin giao hang. Vui long gui theo mau:\n"
-            "Ten: Nguyen Van A\nSDT: 09xxxxxxxx\nDia chi: So nha, duong, quan"
+            "Ten: Nguyen Van A\nSDT: So dien thoai nguoi nhan\nDia chi: So nha, duong, quan\nVi du: 0812345678"
         )
         return
 
@@ -510,7 +510,7 @@ async def checkout_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     )
     lines.append(
         "\nVui long gui thong tin giao hang theo mau:\n"
-        "Ten: Nguyen Van A\nSDT: 09xxxxxxxx\nDia chi: So nha, duong, quan"
+        "Ten: Nguyen Van A\nSDT: So dien thoai nguoi nhan\nDia chi: So nha, duong, quan\nVi du: 0812345678"
     )
 
     await update.message.reply_text("\n".join(lines))
@@ -529,7 +529,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         if not delivery:
             await update.message.reply_text(
                 "Minh chua doc du thong tin giao hang. Ban gui theo mau:\n"
-                "Ten: Nguyen Van A\nSDT: 09xxxxxxxx\nDia chi: So nha, duong, quan"
+                "Ten: Nguyen Van A\nSDT: So dien thoai nguoi nhan\nDia chi: So nha, duong, quan\nVi du: 0812345678"
             )
             return
 
