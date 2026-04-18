@@ -68,6 +68,15 @@ SESSIONS: Dict[int, Session] = {}
 MENU: Dict[str, MenuItem] = {}
 OPENAI_CLIENT: OpenAI | None = None
 OPENAI_MODEL: str = "gpt-4o-mini"
+DELIVERY_INFO_TEMPLATE = (
+    "Ten: Ten nguoi nhan\n"
+    "SDT: So dien thoai nguoi nhan\n"
+    "Dia chi: So nha, duong, quan\n"
+    "Vi du:\n"
+    "Ten: Nguyen Van A\n"
+    "SDT: 0812345678\n"
+    "Dia chi: 12, Ta Quang Buu, 2"
+)
 
 
 def load_menu(csv_path: str) -> Dict[str, MenuItem]:
@@ -415,7 +424,7 @@ async def paid_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not order.delivery_phone or not order.delivery_address:
         await update.message.reply_text(
             "Don nay chua du thong tin giao hang. Vui long gui theo mau:\n"
-            "Ten: Nguyen Van A\nSDT: So dien thoai nguoi nhan\nDia chi: So nha, duong, quan\nVi du: 0812345678"
+            f"{DELIVERY_INFO_TEMPLATE}"
         )
         return
 
@@ -494,9 +503,9 @@ async def checkout_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
     lines.append(
         "\nHUONG DAN SAU BUOC NAY:\n"
-        "1) Neu ban thanh toan that: quet QR/chuyen khoan truoc.\n"
+        "1) Thanh toan: quet QR/chuyen khoan truoc.\n"
         "2) Gui thong tin giao hang theo mau ben duoi.\n"
-        "3) Neu dang demo (khong co giao dich that), sau khi gui thong tin giao hang hay dung /paid de qua buoc xac nhan thanh toan."
+        "3) Do dang demo (khong co giao dich that), sau khi gui thong tin giao hang hay dung /paid de qua buoc xac nhan thanh toan."
     )
 
     user = update.effective_user
@@ -510,7 +519,7 @@ async def checkout_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     )
     lines.append(
         "\nVui long gui thong tin giao hang theo mau:\n"
-        "Ten: Nguyen Van A\nSDT: So dien thoai nguoi nhan\nDia chi: So nha, duong, quan\nVi du: 0812345678"
+        f"{DELIVERY_INFO_TEMPLATE}"
     )
 
     await update.message.reply_text("\n".join(lines))
@@ -529,7 +538,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         if not delivery:
             await update.message.reply_text(
                 "Minh chua doc du thong tin giao hang. Ban gui theo mau:\n"
-                "Ten: Nguyen Van A\nSDT: So dien thoai nguoi nhan\nDia chi: So nha, duong, quan\nVi du: 0812345678"
+                f"{DELIVERY_INFO_TEMPLATE}"
             )
             return
 
